@@ -14,19 +14,12 @@ from torchvision import models, transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 
-def train_resnet_approximator(label_csv,data_dir,batch_size=8,validation_split=.2,epochs=25):
+def train_resnet_approximator(model_name,label_csv,data_dir,out_dir,batch_size=8,validation_split=.2,epochs=25,lr=0.001):
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-    '''###############   Parameters   ##############################
-    
-    validation_split = .2
-    batch_size = 4
-    EPOCHS = 2
-    
-    
-    ###############################################################'''
+
     data_transformer = transforms.Compose([transforms.Scale])
     data = market_graph_dataset(csv_file=label_csv, root_dir=data_dir)
 
@@ -55,6 +48,12 @@ def train_resnet_approximator(label_csv,data_dir,batch_size=8,validation_split=.
 
     '''training routine based on https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html'''
     def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
+
+        train_acc = []
+        val_acc = []
+        train_loss = []
+        val_loss = []
+
         since = time.time()
 
         best_model_wts = copy.deepcopy(model.state_dict())
@@ -128,6 +127,14 @@ def train_resnet_approximator(label_csv,data_dir,batch_size=8,validation_split=.
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(model.state_dict())
 
+                #Record per-epoch accuracy and loss for both training and validation
+                if phase == 'train':
+                    train_acc.append(epoch_acc.item())
+                    train_loss.append(epoch_loss)
+                else:
+                    val_acc.append(epoch_acc.item())
+                    val_loss.append(epoch_loss)
+
             print()
 
         time_elapsed = time.time() - since
@@ -135,14 +142,16 @@ def train_resnet_approximator(label_csv,data_dir,batch_size=8,validation_split=.
             time_elapsed // 60, time_elapsed % 60))
         print('Best val Acc: {:4f}'.format(best_acc))
 
+
+
         # load best model weights
         model.load_state_dict(best_model_wts)
-        return model
+        return model, train_acc, val_acc, train_loss, val_loss
 
 
     '''#########################################################'''
 
-    #TODO should I train the whole network (resnet18 is pretty tiny) or transfer by only changing final layer
+    #TODO should I train the whole network? (resnet18 is pretty tiny) or transfer by only changing final layer
     #alternatively I could use a bigger resnet and only tune the output layer
 
     model_ft = models.resnet18(pretrained=True)
@@ -156,15 +165,45 @@ def train_resnet_approximator(label_csv,data_dir,batch_size=8,validation_split=.
     criterion = nn.CrossEntropyLoss()
 
     # Observe that all parameters are being optimized
-    optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
+    optimizer_ft = optim.SGD(model_ft.parameters(), lr=lr, momentum=0.9)
 
     # Decay LR by a factor of 0.1 every 7 epochs
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
     '''#########################################################'''
 
-    model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
+    model_ft, train_acc, val_acc, train_loss, val_loss= train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
                            num_epochs=epochs)
 
+
+    #Plot and save loss
+    X_axis = list(range(epochs))
+    cur_plot = plt.figure()
+    plt.plot(X_axis, train_loss, label='Training Loss')
+    plt.plot(X_axis, val_loss, label='Validation Loss')
+    cur_plot.suptitle(str(model_name)+' Loss: lr=' + str(lr))
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    # plt.show()
+    plt.savefig(str(out_dir)+str(model_name)+'_loss.png')
+
+    # clear plot for next iteration
+    plt.clf()
+
+    #Plot and save accuracy
+    X_axis = list(range(epochs))
+    cur_plot = plt.figure()
+    plt.plot(X_axis, train_acc, label='Training Accuracy')
+    plt.plot(X_axis, val_acc, label='Validation Accuracy')
+    cur_plot.suptitle(str(model_name)+' Accuracy: lr=' + str(lr))
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    # plt.show()
+    plt.savefig(str(out_dir)+str(model_name)+'_acc.png')
+
+    # clear plot for next iteration
+    plt.clf()
 
     return model_ft

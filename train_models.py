@@ -3,6 +3,7 @@ from value_approximator_1 import train_resnet_approximator
 import os
 import torch
 
+
 '''For reference, use this to save/load
 
 #NOTE SAVING THIS WAY COULD CAUSE PROBLEMS, THE MODEL ABOVE IS BOUND TO DIRECTORY STRUCTURE
@@ -28,21 +29,38 @@ model.eval()
 '''
 
 
+'''###############   Parameters   ##############################'''
 
-candlestick_model = train_resnet_approximator(label_csv='./data/daily/candle_stick/labels.csv',
-                                            data_dir='./data/daily/candle_stick/',
-                                            batch_size=8,
-                                            validation_split=.2,
-                                            epochs=1)
+VAL_SPLIT = .2
+BATCH_SIZE = 4
+EPOCHS = 2
+LR = .01
 
-# Create requisite directory structure
-outdir ='./models/'
-if not os.path.exists(outdir):
-    os.makedirs(outdir, exist_ok=True)
+'''###############################################################'''
+def run_training(experiment_name):
+    # Create requisite directory structure
+    outdir ='./models/'+str(experiment_name)+'/'
+    if not os.path.exists(outdir):
+        os.makedirs(outdir, exist_ok=True)
+
+    fit_model = train_resnet_approximator(model_name=str(experiment_name),
+                                                label_csv='./data/daily/'+str(experiment_name)+'/labels.csv',
+                                                data_dir='./data/daily/'+str(experiment_name)+'/',
+                                                out_dir=outdir,
+                                                batch_size=BATCH_SIZE,
+                                                validation_split=VAL_SPLIT,
+                                                epochs=EPOCHS,
+                                                lr=LR)
 
 
-#Save trained model weights
-torch.save(candlestick_model.state_dict(), outdir+'candlestick.pt')
+
+    #Save trained model weights
+    torch.save(fit_model.state_dict(), outdir+str(experiment_name)+'.pt')
+    return fit_model
 
 
-
+run_training('candle_stick')
+run_training('movingAvg')
+run_training('PandF')
+run_training('price_line')
+run_training('renko')
