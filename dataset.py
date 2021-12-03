@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 import os
+import cv2
 from skimage import io, transform
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
@@ -31,11 +32,14 @@ class market_graph_dataset(Dataset):
 
         img_name = os.path.join(self.root_dir,
                                 self.graphs.iloc[idx, -1])
-        image = io.imread(img_name)
-        percent_change = self.graphs.iloc[idx, 2]
-        #time_step = np.array([time_step])
 
-        sample = {'image': image, 'percent_change': percent_change}
+        # NOTE io.imread includes alpha channel (transparency) while cv2 does not
+        #image = io.imread(img_name)
+        image = cv2.imread(img_name)
+        percent_change = self.graphs.iloc[idx, 2]
+
+        #sample = {'image': image, 'percent_change': percent_change}
+        sample = image, percent_change
 
         if self.transform:
             sample = self.transform(sample)
@@ -49,9 +53,11 @@ def test():
     data = market_graph_dataset(csv_file='./data/daily/candle_stick/labels.csv', root_dir='./data/daily/candle_stick/')
 
     for i in range(len(data)):
-        sample = data[i]
+        img, label = data[i]
 
-        print(sample['percent_change'])
+        #print(sample['percent_change'])
+        print(img.shape)
+        break
 
 
 #test()
