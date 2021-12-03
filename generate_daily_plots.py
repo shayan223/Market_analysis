@@ -30,6 +30,8 @@ def gen_day_candlestick(root, time_window):
     cur_price_labels = []
     #Label for the resulting price in the next time step
     result_price_labels = []
+    #Keep track of every file name
+    file_name_labels = []
 
 
     #Plot day-by-day candle-stick chart, with previous 'time_window' days history, for every day
@@ -49,12 +51,16 @@ def gen_day_candlestick(root, time_window):
         cur_price_labels.append(cur_price)
         result_price_labels.append(resulting_price)
 
+        filename = 'timestep_'+str(i)+'.png'
+        file_name_labels.append(filename)
+
 
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
     labels['current_price'] = cur_price_labels
     labels['resulting_price'] = result_price_labels
+    labels['file_name'] = file_name_labels
 
     labels.to_csv(root+'/daily/candle_stick/labels.csv')
 
@@ -86,6 +92,8 @@ def gen_day_priceLine(root, time_window):
     cur_price_labels = []
     #Label for the resulting price in the next time step
     result_price_labels = []
+    #Keep track of every file name
+    file_name_labels = []
 
 
     #Plot day-by-day candle-stick chart, with previous 'time_window' days history, for every day
@@ -105,12 +113,16 @@ def gen_day_priceLine(root, time_window):
         cur_price_labels.append(cur_price)
         result_price_labels.append(resulting_price)
 
+        filename = 'timestep_'+str(i)+'.png'
+        file_name_labels.append(filename)
+
 
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
     labels['current_price'] = cur_price_labels
     labels['resulting_price'] = result_price_labels
+    labels['file_name'] = file_name_labels
 
     labels.to_csv(root+'/daily/price_line/labels.csv')
 
@@ -141,6 +153,8 @@ def gen_day_PandF(root, time_window):
     cur_price_labels = []
     #Label for the resulting price in the next time step
     result_price_labels = []
+    #Keep track of every file name
+    file_name_labels = []
 
 
     #Plot day-by-day point and figure chart, with previous 'time_window' days history, for every day
@@ -160,12 +174,16 @@ def gen_day_PandF(root, time_window):
         cur_price_labels.append(cur_price)
         result_price_labels.append(resulting_price)
 
+        filename = 'timestep_'+str(i)+'.png'
+        file_name_labels.append(filename)
+
 
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
     labels['current_price'] = cur_price_labels
     labels['resulting_price'] = result_price_labels
+    labels['file_name'] = file_name_labels
 
     labels.to_csv(root+'/daily/PandF/labels.csv')
 
@@ -195,6 +213,8 @@ def gen_day_renko(root, time_window):
     cur_price_labels = []
     # Label for the resulting price in the next time step
     result_price_labels = []
+    #Keep track of every file name
+    file_name_labels = []
 
 
     #Plot day-by-day renko chart, with previous 'time_window' days history, for every day
@@ -214,12 +234,15 @@ def gen_day_renko(root, time_window):
         cur_price_labels.append(cur_price)
         result_price_labels.append(resulting_price)
 
+        filename = 'timestep_'+str(i)+'.png'
+        file_name_labels.append(filename)
 
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
     labels['current_price'] = cur_price_labels
     labels['resulting_price'] = result_price_labels
+    labels['file_name'] = file_name_labels
 
     labels.to_csv(root+'/daily/renko/labels.csv')
 
@@ -251,6 +274,8 @@ def gen_day_movingAvg(root, time_window):
     cur_price_labels = []
     #Label for the resulting price in the next time step
     result_price_labels = []
+    #Keep track of every file name
+    file_name_labels = []
 
     #Plot day-by-day candle-stick chart, with previous 'time_window' days history, for every day
     #We do not include the very last day because we do not know its price change in the following time step.
@@ -275,12 +300,16 @@ def gen_day_movingAvg(root, time_window):
         cur_price_labels.append(cur_price)
         result_price_labels.append(resulting_price)
 
+        filename = 'timestep_'+str(i)+'.png'
+        file_name_labels.append(filename)
+
 
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
     labels['current_price'] = cur_price_labels
     labels['resulting_price'] = result_price_labels
+    labels['file_name'] = file_name_labels
 
     labels.to_csv(root+'/daily/movingAvg/labels.csv')
 
