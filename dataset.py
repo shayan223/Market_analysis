@@ -48,7 +48,7 @@ class market_graph_dataset(Dataset):
 
 
 
-def test():
+def test_retrieval():
 
     data = market_graph_dataset(csv_file='./data/daily/candle_stick/labels.csv', root_dir='./data/daily/candle_stick/')
 
@@ -60,4 +60,4 @@ def test():
         break
 
 
-#test()
+test_retrieval()
