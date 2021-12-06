@@ -19,7 +19,7 @@ def train_resnet_approximator(model_name,label_csv,data_dir,out_dir,batch_size=8
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-
+    #TODO DOUBLE CHECK TO SEE IF I ACTUALLY NEED THE TRANSFORM
     data_transformer = transforms.Compose([transforms.Scale])
     data = market_graph_dataset(csv_file=label_csv, root_dir=data_dir)
 
@@ -103,6 +103,7 @@ def train_resnet_approximator(model_name,label_csv,data_dir,out_dir,batch_size=8
 
                         outputs = model(inputs)
                         _, preds = torch.max(outputs, 1)
+
                         loss = criterion(outputs, labels)
 
                         # backward + optimize only if in training phase

@@ -59,8 +59,8 @@ def run_training(experiment_name):
     return fit_model
 
 
-run_training('candle_stick')
-run_training('movingAvg')
-run_training('PandF')
-run_training('price_line')
-run_training('renko')
+#run_training('candle_stick')
+#run_training('movingAvg')
+#run_training('PandF')
+#run_training('price_line')
+#run_training('renko')
