@@ -39,11 +39,12 @@ class market_graph_dataset(Dataset):
         percent_change = self.graphs.iloc[idx, 2]
 
         #sample = {'image': image, 'percent_change': percent_change}
-        sample = image, percent_change
+
 
         if self.transform:
-            sample = self.transform(sample)
+            image = self.transform(image)
 
+        sample = image, percent_change
         return sample
 
 

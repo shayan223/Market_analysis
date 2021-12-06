@@ -19,9 +19,10 @@ def train_resnet_approximator(model_name,label_csv,data_dir,out_dir,batch_size=8
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-    #TODO DOUBLE CHECK TO SEE IF I ACTUALLY NEED THE TRANSFORM
-    data_transformer = transforms.Compose([transforms.Scale])
-    data = market_graph_dataset(csv_file=label_csv, root_dir=data_dir)
+    data_transformer = transforms.Compose([transforms.ToPILImage(),
+                                           transforms.Resize(224),
+                                           transforms.ToTensor()])
+    data = market_graph_dataset(csv_file=label_csv, root_dir=data_dir,transform=data_transformer)
 
 
     dataset_size = len(data)
@@ -83,7 +84,7 @@ def train_resnet_approximator(model_name,label_csv,data_dir,out_dir,batch_size=8
                     labels[labels > 0] = 1 #all positive values to 1
 
                     #reorder input to match format: (Batch_size, channels, dim1, dim2)
-                    inputs = inputs.permute(0,3,1,2)
+                    inputs = inputs.permute(0,1,3,2)
 
                     #Send data to GPU
                     inputs = inputs.to(device)

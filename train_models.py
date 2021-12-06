@@ -32,8 +32,8 @@ model.eval()
 '''###############   Parameters   ##############################'''
 
 VAL_SPLIT = .2
-BATCH_SIZE = 4
-EPOCHS = 2
+BATCH_SIZE = 16
+EPOCHS = 15
 LR = .01
 
 '''###############################################################'''
@@ -59,8 +59,8 @@ def run_training(experiment_name):
     return fit_model
 
 
-#run_training('candle_stick')
-#run_training('movingAvg')
-#run_training('PandF')
-#run_training('price_line')
-#run_training('renko')
+run_training('candle_stick')
+run_training('movingAvg')
+run_training('PandF')
+run_training('price_line')
+run_training('renko')
