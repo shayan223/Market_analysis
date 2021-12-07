@@ -86,8 +86,8 @@ class environment:
         self.state_approximation = self.aproximate_values()
 
         '''######### IF STATEMENT FOR TESTING, CUTS TRAINING SHORT ########'''
-        #TODO consider starting
-        if(self.cur_time_step == 3):
+        #TODO consider starting at different points in the time line
+        if(self.cur_time_step == STEPS_PER_EP):
             done = 1
         '''################################################################'''
         return reward, done
@@ -116,7 +116,6 @@ class environment:
         return self.get_state_internal(self.cur_time_step)
 
     def aproximate_values(self):
-        #TODO replace with evaluating current timestep images through pretrained CNN's to create state vector
 
         #NOTE: squeeze() simply removes empty (extra in this case) dimensions
         output_vector = [
@@ -171,16 +170,18 @@ Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
 
-REPLAY_MEMORY = 4
+REPLAY_MEMORY = 8
 BATCH_SIZE = 4
 GAMMA = 0.999
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 10
-NUM_EPISODES = 3
+NUM_EPISODES = 10
+STEPS_PER_EP = 150
 DATA_ROOT = './data/daily/'
 env = environment(DATA_ROOT)
+
 
 class ReplayMemory(object):
 
@@ -337,14 +338,20 @@ def optimize_model():
     # This is merged based on the mask, such that we'll have either the expected
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
-
     next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+
+
     # Compute the expected Q values
-    expected_state_action_values = (next_state_values * GAMMA) + reward_batch
+    # changed from the below to get * and + operations to behave element-wise
+    #expected_state_action_values = (next_state_values * GAMMA) + reward_batch
+    next_state_values = next_state_values.squeeze()*GAMMA
+    reward_batch = reward_batch.squeeze()
+
+    expected_state_action_values = torch.add(next_state_values,reward_batch).unsqueeze(1)
 
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
-    loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+    loss = criterion(state_action_values, expected_state_action_values)
 
     # Optimize the model
     optimizer.zero_grad()
@@ -391,7 +398,7 @@ for i_episode in range(NUM_EPISODES):
         state = next_state
 
         # Perform one step of the optimization (on the policy network)
-        print(t)
+        print('Step: ', t)
         optimize_model()
         if done:
             episode_durations.append(t + 1)
