@@ -22,6 +22,7 @@ def gen_candlestick(root, time_window, time_scale,data_file):
         data = data.drop(['Symbol', 'Volume USD'], axis=1)
         data = data.rename(columns={'Volume ETH':'Volume'})
     else:
+        print(data.head())
         data = data.drop(['Symbol','Unix Timestamp'], axis=1)
     data = data.iloc[::-1]
     print(data.head())
