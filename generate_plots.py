@@ -15,11 +15,14 @@ def gen_candlestick(root, time_window, time_scale,data_file):
 
 
     #Load 'time_scale' resolution data
-    #Volume is by USD and not ETH (ETH volume is dropped)
+    #Volume is by ETH and not USD (USD volume is dropped)
     #Args are used to specifically read dat column as a DateTimeIndex
     data = pd.read_csv(root+'/'+data_file,index_col=0,parse_dates=True)
-    data = data.drop(['Symbol', 'Volume ETH'], axis=1)
-    data = data.rename(columns={'Volume USD':'Volume'})
+    if(data_file == 'ETH_day.csv'):
+        data = data.drop(['Symbol', 'Volume USD'], axis=1)
+        data = data.rename(columns={'Volume ETH':'Volume'})
+    else:
+        data = data.drop(['Symbol','Unix Timestamp'], axis=1)
     data = data.iloc[::-1]
     print(data.head())
 
