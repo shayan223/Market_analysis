@@ -323,20 +323,20 @@ def gen_movingAvg(root, time_window,time_scale,data_file):
 
 root = './data'
 time_window=30
-
+'''
 gen_candlestick(root,time_window,'daily','ETH_day.csv')
 gen_priceLine(root,time_window,'daily','ETH_day.csv')
 gen_PandF(root,time_window,'daily','ETH_day.csv')
 gen_renko(root,time_window,'daily','ETH_day.csv')
 gen_movingAvg(root,time_window,'daily','ETH_day.csv')
+'''
 
-'''
-gen_candlestick(root,time_window,'daily')
-gen_priceLine(root,time_window,'daily')
-gen_PandF(root,time_window,'daily')
-gen_renko(root,time_window,'daily')
-gen_movingAvg(root,time_window,'daily')
-'''
+gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
+gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
+gen_PandF(root,time_window,'hourly','ETH_1H.csv')
+gen_renko(root,time_window,'hourly','ETH_1H.csv')
+gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
+
 
 
 
