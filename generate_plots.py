@@ -23,7 +23,10 @@ def gen_candlestick(root, time_window, time_scale,data_file):
         data = data.rename(columns={'Volume ETH':'Volume'})
     else:
         print(data.head())
+        data = data.reset_index()
         data = data.drop(['Symbol','Unix Timestamp'], axis=1)
+        data['Date'] = pd.to_datetime(data['Date'])
+        data = data.set_index(['Date'])
     data = data.iloc[::-1]
     print(data.head())
 
@@ -336,10 +339,10 @@ gen_movingAvg(root,time_window,'daily','ETH_day.csv')
 '''
 
 gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
-gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
-gen_PandF(root,time_window,'hourly','ETH_1H.csv')
-gen_renko(root,time_window,'hourly','ETH_1H.csv')
-gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
+#gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
+#gen_PandF(root,time_window,'hourly','ETH_1H.csv')
+#gen_renko(root,time_window,'hourly','ETH_1H.csv')
+#gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
 
 
 
