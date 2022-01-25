@@ -37,15 +37,15 @@ EPOCHS = 15
 LR = .01
 
 '''###############################################################'''
-def run_training(experiment_name):
+def run_training(experiment_name,time_resolution):
     # Create requisite directory structure
     outdir ='./models/'+str(experiment_name)+'/'
     if not os.path.exists(outdir):
         os.makedirs(outdir, exist_ok=True)
 
     fit_model = train_resnet_approximator(model_name=str(experiment_name),
-                                                label_csv='./data/daily/'+str(experiment_name)+'/labels.csv',
-                                                data_dir='./data/daily/'+str(experiment_name)+'/',
+                                                label_csv='./data/'+time_resolution+'/'+str(experiment_name)+'/labels.csv',
+                                                data_dir='./data/'+time_resolution+'/'+str(experiment_name)+'/',
                                                 out_dir=outdir,
                                                 batch_size=BATCH_SIZE,
                                                 validation_split=VAL_SPLIT,
@@ -59,8 +59,10 @@ def run_training(experiment_name):
     return fit_model
 
 
-run_training('candle_stick')
-run_training('movingAvg')
-run_training('PandF')
-run_training('price_line')
-run_training('renko')
+#run_training('candle_stick','daily')
+#run_training('movingAvg')
+#run_training('PandF')
+#run_training('price_line')
+#run_training('renko')
+
+run_training('candle_stick','hourly')

@@ -17,7 +17,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 def train_resnet_approximator(model_name,label_csv,data_dir,out_dir,batch_size=8,validation_split=.2,epochs=25,lr=0.001):
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
+    print("Selected device: ",device)
 
     data_transformer = transforms.Compose([transforms.ToPILImage(),
                                            transforms.Resize(224),
@@ -29,8 +29,11 @@ def train_resnet_approximator(model_name,label_csv,data_dir,out_dir,batch_size=8
     indices = list(range(dataset_size))
     split = int(np.floor(validation_split * dataset_size))
 
-    np.random.seed(int(time.time()))#time is used for random seeding can be set static for debug
-    np.random.shuffle(indices)
+    #np.random.seed(int(time.time()))#time is used for random seeding can be set static for debug
+    #np.random.shuffle(indices)
+    '''We can directly split the data without any shuffling to maintain a chronological order, such that we train
+        on historical data and validate on more recent data.
+        '''
     train_indices, val_indices = indices[split:], indices[:split]
     dataset_sizes = {'train': len(train_indices), 'val': len(val_indices)}
 

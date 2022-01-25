@@ -85,12 +85,19 @@ def gen_priceLine(root, time_window,time_scale,data_file):
         os.makedirs(outdir,exist_ok=True)
 
 
-    #Load day-by-day resolution data
-    #Volume is by USD and not ETH (ETH volume is dropped)
+    #Load 'time_scale' resolution data
+    #Volume is by ETH and not USD (USD volume is dropped)
     #Args are used to specifically read dat column as a DateTimeIndex
     data = pd.read_csv(root+'/'+data_file,index_col=0,parse_dates=True)
-    data = data.drop(['Symbol', 'Volume ETH'], axis=1)
-    data = data.rename(columns={'Volume USD':'Volume'})
+    if(data_file == 'ETH_day.csv'):
+        data = data.drop(['Symbol', 'Volume USD'], axis=1)
+        data = data.rename(columns={'Volume ETH':'Volume'})
+    else:
+        print(data.head())
+        data = data.reset_index()
+        data = data.drop(['Symbol','Unix Timestamp'], axis=1)
+        data['Date'] = pd.to_datetime(data['Date'])
+        data = data.set_index(['Date'])
     data = data.iloc[::-1]
     print(data.head())
 
@@ -127,6 +134,8 @@ def gen_priceLine(root, time_window,time_scale,data_file):
         filename = 'timestep_'+str(i)+'.png'
         file_name_labels.append(filename)
 
+        
+
 
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
@@ -147,12 +156,19 @@ def gen_PandF(root, time_window,time_scale,data_file):
         os.makedirs(outdir,exist_ok=True)
 
 
-    #Load day-by-day resolution data
-    #Volume is by USD and not ETH (ETH volume is dropped)
+    #Load 'time_scale' resolution data
+    #Volume is by ETH and not USD (USD volume is dropped)
     #Args are used to specifically read dat column as a DateTimeIndex
     data = pd.read_csv(root+'/'+data_file,index_col=0,parse_dates=True)
-    data = data.drop(['Symbol', 'Volume ETH'], axis=1)
-    data = data.rename(columns={'Volume USD':'Volume'})
+    if(data_file == 'ETH_day.csv'):
+        data = data.drop(['Symbol', 'Volume USD'], axis=1)
+        data = data.rename(columns={'Volume ETH':'Volume'})
+    else:
+        print(data.head())
+        data = data.reset_index()
+        data = data.drop(['Symbol','Unix Timestamp'], axis=1)
+        data['Date'] = pd.to_datetime(data['Date'])
+        data = data.set_index(['Date'])
     data = data.iloc[::-1]
     print(data.head())
 
@@ -190,6 +206,8 @@ def gen_PandF(root, time_window,time_scale,data_file):
         file_name_labels.append(filename)
 
 
+
+
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
@@ -208,12 +226,19 @@ def gen_renko(root, time_window,time_scale,data_file):
         os.makedirs(outdir,exist_ok=True)
 
 
-    #Load day-by-day resolution data
-    #Volume is by USD and not ETH (ETH volume is dropped)
+    #Load 'time_scale' resolution data
+    #Volume is by ETH and not USD (USD volume is dropped)
     #Args are used to specifically read dat column as a DateTimeIndex
     data = pd.read_csv(root+'/'+data_file,index_col=0,parse_dates=True)
-    data = data.drop(['Symbol', 'Volume ETH'], axis=1)
-    data = data.rename(columns={'Volume USD':'Volume'})
+    if(data_file == 'ETH_day.csv'):
+        data = data.drop(['Symbol', 'Volume USD'], axis=1)
+        data = data.rename(columns={'Volume ETH':'Volume'})
+    else:
+        print(data.head())
+        data = data.reset_index()
+        data = data.drop(['Symbol','Unix Timestamp'], axis=1)
+        data['Date'] = pd.to_datetime(data['Date'])
+        data = data.set_index(['Date'])
     data = data.iloc[::-1]
     print(data.head())
 
@@ -250,6 +275,8 @@ def gen_renko(root, time_window,time_scale,data_file):
         filename = 'timestep_'+str(i)+'.png'
         file_name_labels.append(filename)
 
+
+
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
@@ -270,12 +297,19 @@ def gen_movingAvg(root, time_window,time_scale,data_file):
         os.makedirs(outdir,exist_ok=True)
 
 
-    #Load day-by-day resolution data
-    #Volume is by USD and not ETH (ETH volume is dropped)
+    #Load 'time_scale' resolution data
+    #Volume is by ETH and not USD (USD volume is dropped)
     #Args are used to specifically read dat column as a DateTimeIndex
     data = pd.read_csv(root+'/'+data_file,index_col=0,parse_dates=True)
-    data = data.drop(['Symbol', 'Volume ETH'], axis=1)
-    data = data.rename(columns={'Volume USD':'Volume'})
+    if(data_file == 'ETH_day.csv'):
+        data = data.drop(['Symbol', 'Volume USD'], axis=1)
+        data = data.rename(columns={'Volume ETH':'Volume'})
+    else:
+        print(data.head())
+        data = data.reset_index()
+        data = data.drop(['Symbol','Unix Timestamp'], axis=1)
+        data['Date'] = pd.to_datetime(data['Date'])
+        data = data.set_index(['Date'])
     data = data.iloc[::-1]
     print(data.head())
 
@@ -317,6 +351,8 @@ def gen_movingAvg(root, time_window,time_scale,data_file):
         file_name_labels.append(filename)
 
 
+
+
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
@@ -338,11 +374,11 @@ gen_renko(root,time_window,'daily','ETH_day.csv')
 gen_movingAvg(root,time_window,'daily','ETH_day.csv')
 '''
 
-gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
-#gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
-#gen_PandF(root,time_window,'hourly','ETH_1H.csv')
-#gen_renko(root,time_window,'hourly','ETH_1H.csv')
-#gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
+#gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
+gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
+gen_PandF(root,time_window,'hourly','ETH_1H.csv')
+gen_renko(root,time_window,'hourly','ETH_1H.csv')
+gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
 
 
 
