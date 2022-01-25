@@ -134,7 +134,7 @@ def gen_priceLine(root, time_window,time_scale,data_file):
         filename = 'timestep_'+str(i)+'.png'
         file_name_labels.append(filename)
 
-        
+
 
 
     labels = pd.DataFrame(price_change_labels)
@@ -375,8 +375,9 @@ gen_movingAvg(root,time_window,'daily','ETH_day.csv')
 '''
 
 #gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
-gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
-gen_PandF(root,time_window,'hourly','ETH_1H.csv')
+#gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
+#gen_PandF(root,time_window,'hourly','ETH_1H.csv')
+#TODO renko breaking due to data, use try-catch block to deal with integer conversion problem
 gen_renko(root,time_window,'hourly','ETH_1H.csv')
 gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
 
