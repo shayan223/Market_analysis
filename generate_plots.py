@@ -189,7 +189,16 @@ def gen_PandF(root, time_window,time_scale,data_file):
     for i in tqdm(range(data.shape[0]-time_window-1)):
         current_timeStep = data.iloc[i:i+time_window]
         # Change size of saved figures to match resnet image resolution of 224x224 (default dpi of 100 used in calculation below)
-        mpf.plot(current_timeStep, type='pnf', style='yahoo', savefig=root+'/'+time_scale+'/PandF/timestep_'+str(i),figsize=(224/100,224/100))
+
+        '''This particular library function has a bug if the High and Low values are to close in a given time span,
+        The following try-except adds a bit to the high to create a difference. This introduces some noise, however
+        It is only a very small portion of the data (approximately 1 in 30,000)'''
+        try:
+            mpf.plot(current_timeStep, type='pnf', style='yahoo', savefig=root+'/'+time_scale+'/PandF/timestep_'+str(i),figsize=(224/100,224/100))
+        except:
+            current_timeStep.loc[:,'High'] += .001
+            mpf.plot(current_timeStep, type='pnf', style='yahoo',
+                     savefig=root + '/' + time_scale + '/PandF/timestep_' + str(i), figsize=(224 / 100, 224 / 100))
 
         # Initialise t+1 price for label generation
         resulting_price = data.iloc[i+(time_window + 1)]['Close']
@@ -376,8 +385,8 @@ gen_movingAvg(root,time_window,'daily','ETH_day.csv')
 
 #gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
 #gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
-#gen_PandF(root,time_window,'hourly','ETH_1H.csv')
-#TODO renko breaking due to data, use try-catch block to deal with integer conversion problem
+#TODO pandf breaking due to data, use try-catch block to deal with integer conversion problem
+gen_PandF(root,time_window,'hourly','ETH_1H.csv')
 gen_renko(root,time_window,'hourly','ETH_1H.csv')
 gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
 
