@@ -196,9 +196,15 @@ def gen_PandF(root, time_window,time_scale,data_file):
         try:
             mpf.plot(current_timeStep, type='pnf', style='yahoo', savefig=root+'/'+time_scale+'/PandF/timestep_'+str(i),figsize=(224/100,224/100))
         except:
-            current_timeStep.loc[:,'High'] += .001
-            mpf.plot(current_timeStep, type='pnf', style='yahoo',
-                     savefig=root + '/' + time_scale + '/PandF/timestep_' + str(i), figsize=(224 / 100, 224 / 100))
+            try:
+                current_timeStep.loc[:,'High'] += .001
+                mpf.plot(current_timeStep, type='pnf', style='yahoo',
+                         savefig=root + '/' + time_scale + '/PandF/timestep_' + str(i), figsize=(224 / 100, 224 / 100))
+            except:
+                #if fixing it still doesn't work, skip to the next time step
+                #TODO to create data continuity, change this to insert a default no change graph
+                continue
+
 
         # Initialise t+1 price for label generation
         resulting_price = data.iloc[i+(time_window + 1)]['Close']
@@ -386,6 +392,7 @@ gen_movingAvg(root,time_window,'daily','ETH_day.csv')
 #gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
 #gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
 #TODO pandf breaking due to data, use try-catch block to deal with integer conversion problem
+
 gen_PandF(root,time_window,'hourly','ETH_1H.csv')
 gen_renko(root,time_window,'hourly','ETH_1H.csv')
 gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
