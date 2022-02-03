@@ -183,7 +183,7 @@ def gen_PandF(root, time_window,time_scale,data_file):
     #Keep track of every file name
     file_name_labels = []
 
-
+    data_polution = 0
     #Plot day-by-day point and figure chart, with previous 'time_window' days history, for every day
     #We do not include the very last day because we do not know its price change in the following time step.
     for i in tqdm(range(data.shape[0]-time_window-1)):
@@ -200,9 +200,11 @@ def gen_PandF(root, time_window,time_scale,data_file):
                 current_timeStep.loc[:,'High'] += .001
                 mpf.plot(current_timeStep, type='pnf', style='yahoo',
                          savefig=root + '/' + time_scale + '/PandF/timestep_' + str(i), figsize=(224 / 100, 224 / 100))
+                data_polution += 1
             except:
                 #if fixing it still doesn't work, skip to the next time step
                 #TODO to create data continuity, change this to insert a default no change graph
+                data_polution += 1
                 continue
 
 
@@ -221,7 +223,7 @@ def gen_PandF(root, time_window,time_scale,data_file):
         file_name_labels.append(filename)
 
 
-
+    print("Erroneous data:",data_polution)
 
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
@@ -268,13 +270,28 @@ def gen_renko(root, time_window,time_scale,data_file):
     #Keep track of every file name
     file_name_labels = []
 
-
+    data_polution = 0
     #Plot day-by-day renko chart, with previous 'time_window' days history, for every day
     #We do not include the very last day because we do not know its price change in the following time step.
     for i in tqdm(range(data.shape[0]-time_window-1)):
         current_timeStep = data.iloc[i:i+time_window]
-        # Change size of saved figures to match resnet image resolution of 224x224 (default dpi of 100 used in calculation below)
-        mpf.plot(current_timeStep, type='renko', style='yahoo', savefig=root+'/'+time_scale+'/renko/timestep_'+str(i),figsize=(224/100,224/100))
+
+        try:
+            # Change size of saved figures to match resnet image resolution of 224x224 (default dpi of 100 used in calculation below)
+            mpf.plot(current_timeStep, type='renko', style='yahoo',
+                     savefig=root + '/' + time_scale + '/renko/timestep_' + str(i), figsize=(224 / 100, 224 / 100))
+        except:
+            try:
+                current_timeStep.loc[:,'High'] += .001
+                mpf.plot(current_timeStep, type='renko', style='yahoo',
+                         savefig=root + '/' + time_scale + '/renko/timestep_' + str(i), figsize=(224 / 100, 224 / 100))
+                data_polution += 1
+            except:
+                #if fixing it still doesn't work, skip to the next time step
+                #TODO to create data continuity, change this to insert a default no change graph
+                data_polution += 1
+                continue
+
 
         # Initialise t+1 price for label generation
         resulting_price = data.iloc[i+(time_window + 1)]['Close']
@@ -291,7 +308,7 @@ def gen_renko(root, time_window,time_scale,data_file):
         file_name_labels.append(filename)
 
 
-
+    print("Erroneous data:", data_polution)
     labels = pd.DataFrame(price_change_labels)
     labels.columns = ['closing_price_change_usd']
     labels['percent_change'] = percent_change_labels
@@ -392,10 +409,9 @@ gen_movingAvg(root,time_window,'daily','ETH_day.csv')
 #gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
 #gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
 #TODO pandf breaking due to data, use try-catch block to deal with integer conversion problem
-
-gen_PandF(root,time_window,'hourly','ETH_1H.csv')
-gen_renko(root,time_window,'hourly','ETH_1H.csv')
-gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
+#gen_PandF(root,time_window,'hourly','ETH_1H.csv')
+#gen_renko(root,time_window,'hourly','ETH_1H.csv')
+#gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
 
 
 

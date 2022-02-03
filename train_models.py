@@ -33,7 +33,7 @@ model.eval()
 
 VAL_SPLIT = .2
 BATCH_SIZE = 16
-EPOCHS = 15
+EPOCHS = 50
 LR = .01
 
 '''###############################################################'''
@@ -66,3 +66,7 @@ def run_training(experiment_name,time_resolution):
 #run_training('renko')
 
 run_training('candle_stick','hourly')
+run_training('PandF','hourly')
+run_training('movingAvg','hourly')
+run_training('price_line','hourly')
+run_training('renko','hourly')
