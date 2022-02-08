@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
 from PIL import Image
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -199,8 +200,8 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 10
-NUM_EPISODES = 5
-STEPS_PER_EP = 5
+NUM_EPISODES = 100
+STEPS_PER_EP = 200
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
 VALIDATION_EPISODES = 1 #NUM_EPISODES
@@ -406,7 +407,8 @@ for i_episode in range(NUM_EPISODES):
     state = env.state_approximation
     next_state = env.state_approximation
 
-    for t in count():
+    print("Training for ", STEPS_PER_EP, " steps.")
+    for t in tqdm(count()):
         # Select and perform an action
         action = select_action(state)
         reward, done = env.step(action.item())
@@ -428,7 +430,7 @@ for i_episode in range(NUM_EPISODES):
         state = next_state
 
         # Perform one step of the optimization (on the policy network)
-        print('Step: ', t)
+        #print('Step: ', t)
         optimize_model()
         if done:
             episode_durations.append(t + 1)
