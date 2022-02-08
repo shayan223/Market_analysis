@@ -2,3 +2,4 @@ data/*
 !data/README.txt
 models/*
 .idea/*
+__pycache__/*

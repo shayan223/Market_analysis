@@ -36,7 +36,7 @@ def train_resnet_approximator(model_name,label_csv,data_dir,out_dir,batch_size=8
         '''
     train_indices, val_indices = indices[split:], indices[:split]
     dataset_sizes = {'train': len(train_indices), 'val': len(val_indices)}
-
+    print(dataset_sizes)
     # Creating PT data samplers and loaders:
     train_sampler = SubsetRandomSampler(train_indices)
     valid_sampler = SubsetRandomSampler(val_indices)

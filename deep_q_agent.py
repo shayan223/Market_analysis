@@ -28,7 +28,7 @@ class environment:
         that are output by the respective graph CNN's
     #############################'''
 
-    def __init__(self, data_root):
+    def __init__(self, data_root, validation_split):
         self.cur_time_step = 0
         self.n_actions = 2
         self.g1 = market_graph_dataset(csv_file=data_root+'candle_stick/labels.csv', root_dir=data_root+'/candle_stick')
@@ -43,11 +43,34 @@ class environment:
         self.ap4 = load_model('./models/price_line/price_line.pt')
         self.ap5 = load_model('./models/renko/renko.pt')
 
-        self.max_steps = len(self.g1)
+        self.total_steps = len(self.g1)
+        #max time step before validation data cutoff
+        #(updated to the correct value at the bottom of the constructor with set_data_split)
+        self.max_steps = self.total_steps
 
         self.state, self.current_label = self.get_state()
 
         self.state_approximation = self.aproximate_values()
+
+        self.offset_start = 0
+
+        #Marks the start of the timesteps saved for validation
+        self.validation_index = 0
+
+        #split testing and validation time steps
+        self.set_data_split(validation_split)
+
+    def set_start_offset(self, offset):
+        self.offset_start = offset
+        self.cur_time_step = offset
+
+    def set_data_split(self, validation_split):
+        dataset_size = len(self.g1)
+        split = int(np.floor(validation_split * dataset_size))
+        self.max_steps = self.total_steps - split
+        self.validation_index = self.max_steps + 1
+        print("Percent validation: ",validation_split)
+        print("Training: t=0 to t=",self.max_steps,"Validation: t=",self.validation_index," to t=",self.total_steps)
 
 
     def step(self, action):
@@ -85,11 +108,10 @@ class environment:
         self.state, self.current_label = self.get_state()
         self.state_approximation = self.aproximate_values()
 
-        '''######### IF STATEMENT FOR TESTING, CUTS TRAINING SHORT ########'''
-        #TODO consider starting at different points in the time line
-        if(self.cur_time_step == STEPS_PER_EP):
+        #Stop training at the end of the episode
+        if(self.cur_time_step == self.offset_start+STEPS_PER_EP):
             done = 1
-        '''################################################################'''
+
         return reward, done
 
     def get_state_internal(self, time_step):
@@ -177,10 +199,12 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 10
-NUM_EPISODES = 40
-STEPS_PER_EP = 150
-DATA_ROOT = './data/daily/'
-env = environment(DATA_ROOT)
+NUM_EPISODES = 5
+STEPS_PER_EP = 5
+DATA_ROOT = './data/hourly/'
+VALIDATION_SPLIT = .2
+VALIDATION_EPISODES = 1 #NUM_EPISODES
+env = environment(DATA_ROOT, validation_split=VALIDATION_SPLIT)
 
 
 class ReplayMemory(object):
@@ -257,6 +281,7 @@ steps_done = 0
 def select_action(state):
     global steps_done
     sample = random.random()
+    #update epsilon (greedy) values
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
         math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
@@ -371,7 +396,12 @@ for i_episode in range(NUM_EPISODES):
 
 
     # Initialize the environment and state
-    env = environment(DATA_ROOT)
+    env = environment(DATA_ROOT,validation_split=VALIDATION_SPLIT)
+
+    #Start every episode at a random point in time
+    start_t = random.randint(0,(env.max_steps-STEPS_PER_EP))
+    print("Episode starting from t= ",start_t," to t= ",(start_t+STEPS_PER_EP))
+    env.set_start_offset(start_t)
 
     state = env.state_approximation
     next_state = env.state_approximation
@@ -421,10 +451,82 @@ plt.plot(X_axis, episode_rewards, label='Training Reward')
 plt.xlabel('Episode')
 plt.ylabel('Reward')
 plt.legend()
+plt.title("Average Training Reward: "+ str(sum(episode_rewards)/len(episode_rewards)))
 # plt.show()
 plt.savefig('./Deep_Q_Results.png')
 
 # clear plot for next iteration
 plt.clf()
 
+'''##################################################################'''
+'''#################### Now evaluate the model ######################'''
+'''##################################################################'''
 
+episode_rewards = []
+
+for i_episode in range(VALIDATION_EPISODES):
+
+    print("Episode: ", i_episode)
+    reward_sum = 0
+
+
+    # Initialize the environment and state
+    env = environment(DATA_ROOT,validation_split=VALIDATION_SPLIT)
+
+    #Start every episode at a random point in time
+    start_t = env.validation_index
+    print("Episode starting from t= ",start_t," to t= ",(start_t+STEPS_PER_EP))
+    env.set_start_offset(start_t)
+
+    state = env.state_approximation
+    next_state = env.state_approximation
+
+    for t in count():
+        # Select and perform an action
+        action = select_action(state)
+        reward, done = env.step(action.item())
+        reward = torch.tensor([reward], device=device)
+
+        #print(reward)
+        reward_sum += reward.item()
+
+        # Observe new state
+        if not done:
+            next_state = env.state_approximation
+        else:
+            next_state = None
+
+        # Store the transition in memory
+        memory.push(state, action, next_state, reward)
+
+        # Move to the next state
+        state = next_state
+
+        #no need to optimise the model in validation, so that portion has been removed
+        if done:
+            episode_durations.append(t + 1)
+            #plot_durations()
+            break
+    # Update the target network, copying all weights and biases in DQN
+    if i_episode % TARGET_UPDATE == 0:
+        target_net.load_state_dict(policy_net.state_dict())
+
+    episode_rewards.append(reward_sum)
+
+print('Complete')
+
+# Plot and save loss
+X_axis = list(range(VALIDATION_EPISODES))
+cur_plot = plt.figure()
+plt.plot(X_axis, episode_rewards, label='Validation Reward')
+
+#cur_plot.suptitle(str(model_name) + ' Loss: lr=' + str(lr))
+plt.xlabel('Episode')
+plt.ylabel('Reward')
+plt.legend()
+plt.title("Average Validation Reward: "+ str(sum(episode_rewards)/len(episode_rewards)))
+# plt.show()
+plt.savefig('./Deep_Q_Results_VAL.png')
+
+# clear plot for next iteration
+plt.clf()
