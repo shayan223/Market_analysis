@@ -29,7 +29,7 @@ class environment:
         that are output by the respective graph CNN's
     #############################'''
 
-    def __init__(self, data_root, validation_split):
+    def __init__(self, data_root, validation_split,steps_per_ep):
         self.cur_time_step = 0
         self.n_actions = 2
         self.g1 = market_graph_dataset(csv_file=data_root+'candle_stick/labels.csv', root_dir=data_root+'/candle_stick')
@@ -48,6 +48,8 @@ class environment:
         #max time step before validation data cutoff
         #(updated to the correct value at the bottom of the constructor with set_data_split)
         self.max_steps = self.total_steps
+
+        self. steps_per_ep = steps_per_ep
 
         self.state, self.current_label = self.get_state()
 
@@ -80,7 +82,6 @@ class environment:
         #reward nothing if price doesn't change
         reward = 0
 
-        #TODO change price_change to read state label once data is implemented
         price_change = self.current_label
 
         #reward buying before price increases
@@ -110,7 +111,7 @@ class environment:
         self.state_approximation = self.aproximate_values()
 
         #Stop training at the end of the episode
-        if(self.cur_time_step == self.offset_start+STEPS_PER_EP):
+        if(self.cur_time_step == (self.offset_start+self.steps_per_ep)):
             done = 1
 
         return reward, done
@@ -200,12 +201,14 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 10
-NUM_EPISODES = 100
-STEPS_PER_EP = 200
+NUM_EPISODES = 3
+STEPS_PER_EP = 5
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
-VALIDATION_EPISODES = 1 #NUM_EPISODES
-env = environment(DATA_ROOT, validation_split=VALIDATION_SPLIT)
+VALIDATION_EPISODES = 3
+
+
+env = environment(DATA_ROOT, validation_split=VALIDATION_SPLIT,steps_per_ep=STEPS_PER_EP)
 
 
 class ReplayMemory(object):
@@ -390,6 +393,7 @@ def optimize_model():
 
 episode_rewards = []
 
+print("##### Starting training ######")
 for i_episode in range(NUM_EPISODES):
 
     print("Episode: ", i_episode)
@@ -397,7 +401,7 @@ for i_episode in range(NUM_EPISODES):
 
 
     # Initialize the environment and state
-    env = environment(DATA_ROOT,validation_split=VALIDATION_SPLIT)
+    env = environment(DATA_ROOT,validation_split=VALIDATION_SPLIT,steps_per_ep=STEPS_PER_EP)
 
     #Start every episode at a random point in time
     start_t = random.randint(0,(env.max_steps-STEPS_PER_EP))
@@ -464,6 +468,8 @@ plt.clf()
 '''#################### Now evaluate the model ######################'''
 '''##################################################################'''
 
+print("##### Starting validation ######")
+
 episode_rewards = []
 
 for i_episode in range(VALIDATION_EPISODES):
@@ -473,19 +479,107 @@ for i_episode in range(VALIDATION_EPISODES):
 
 
     # Initialize the environment and state
-    env = environment(DATA_ROOT,validation_split=VALIDATION_SPLIT)
+    env = environment(DATA_ROOT,validation_split=VALIDATION_SPLIT,steps_per_ep=STEPS_PER_EP)
 
     #Start every episode at a random point in time
-    start_t = env.validation_index
+    #Only this time we choose from the reserved validation indices
+    start_t = random.randint(env.validation_index,(env.total_steps-STEPS_PER_EP))
     print("Episode starting from t= ",start_t," to t= ",(start_t+STEPS_PER_EP))
     env.set_start_offset(start_t)
+
+
+    # Adjust the max_steps to match the validation indexing
+    # We subtract 2 because we depend on future data for a label
+    env.max_steps = env.total_steps - 2
+
 
     state = env.state_approximation
     next_state = env.state_approximation
 
-    for t in count():
+    for t in tqdm(count()):
         # Select and perform an action
         action = select_action(state)
+        reward, done = env.step(action.item())
+        reward = torch.tensor([reward], device=device)
+
+        #print(reward)
+        reward_sum += reward.item()
+
+        # Observe new state
+        if not done:
+            next_state = env.state_approximation
+        else:
+            next_state = None
+
+        # Store the transition in memory
+        memory.push(state, action, next_state, reward)
+
+        # Move to the next state
+        state = next_state
+
+        #no need to optimise the model in validation, so that portion has been removed
+        if done:
+            episode_durations.append(t + 1)
+            #plot_durations()
+            break
+    '''
+    # Update the target network, copying all weights and biases in DQN
+    if i_episode % TARGET_UPDATE == 0:
+        target_net.load_state_dict(policy_net.state_dict())
+    '''
+    episode_rewards.append(reward_sum)
+
+print('Complete')
+
+# Plot and save loss
+X_axis = list(range(VALIDATION_EPISODES))
+cur_plot = plt.figure()
+plt.plot(X_axis, episode_rewards, label='Validation Reward')
+
+#cur_plot.suptitle(str(model_name) + ' Loss: lr=' + str(lr))
+plt.xlabel('Episode')
+plt.ylabel('Reward')
+plt.legend()
+plt.title("Average Validation Reward: "+ str(sum(episode_rewards)/len(episode_rewards)))
+# plt.show()
+plt.savefig('./Deep_Q_Results_VAL.png')
+
+# clear plot for next iteration
+plt.clf()
+
+
+'''##################################################################'''
+'''####### Evaluate model on the entire evaluation timeline #########'''
+'''##################################################################'''
+print("##### Validating on all reserved data at once ######")
+episode_rewards = []
+
+for i_episode in range(1):
+
+    print("Episode: ", i_episode)
+    reward_sum = 0
+
+
+    # Initialize the environment and state
+    env = environment(DATA_ROOT,validation_split=VALIDATION_SPLIT,steps_per_ep=(env.total_steps - env.validation_index))
+
+    #Start every episode at a random point in time
+    start_t = env.validation_index
+    print("Episode starting from t= ",start_t," to final t= ",(env.total_steps))
+    env.set_start_offset(start_t)
+
+
+    # Adjust the max_steps to match the validation indexing
+    # We subtract 2 because we depend on future data for a label
+    env.max_steps = env.total_steps - 2
+
+    state = env.state_approximation
+    next_state = env.state_approximation
+
+    for t in tqdm(count()):
+        # Select and perform an action
+        action = select_action(state)
+
         reward, done = env.step(action.item())
         reward = torch.tensor([reward], device=device)
 
@@ -518,7 +612,7 @@ for i_episode in range(VALIDATION_EPISODES):
 print('Complete')
 
 # Plot and save loss
-X_axis = list(range(VALIDATION_EPISODES))
+X_axis = list(range(1))
 cur_plot = plt.figure()
 plt.plot(X_axis, episode_rewards, label='Validation Reward')
 
@@ -528,7 +622,7 @@ plt.ylabel('Reward')
 plt.legend()
 plt.title("Average Validation Reward: "+ str(sum(episode_rewards)/len(episode_rewards)))
 # plt.show()
-plt.savefig('./Deep_Q_Results_VAL.png')
+plt.savefig('./Deep_Q_Results_VAL_entire_timeline.png')
 
 # clear plot for next iteration
 plt.clf()
