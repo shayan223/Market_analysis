@@ -3,6 +3,7 @@ import mplfinance as mpf
 import pandas as pd
 from tqdm import tqdm
 import os
+import matplotlib.pyplot as plt
 
 
 
@@ -183,7 +184,6 @@ def gen_PandF(root, time_window,time_scale,data_file):
     #Keep track of every file name
     file_name_labels = []
 
-    replacement = None  # This will hold on to the latest plot as replacement for corrupted data
     data_polution = 0
     #Plot day-by-day point and figure chart, with previous 'time_window' days history, for every day
     #We do not include the very last day because we do not know its price change in the following time step.
@@ -195,18 +195,15 @@ def gen_PandF(root, time_window,time_scale,data_file):
         The following try-except adds a bit to the high to create a difference. This introduces some noise, however
         It is only a very small portion of the data (approximately 1 in 30,000)'''
         try:
-            buffer = mpf.plot(current_timeStep, type='pnf', style='yahoo', returnfig=True,
+            mpf.plot(current_timeStep, type='pnf', style='yahoo',
                               savefig=root+'/'+time_scale+'/PandF/timestep_'+str(i),figsize=(224/100,224/100))
         except:
-            # if fixing it still doesn't work, replace with the latest working plot
-            # Note, mpf "returnfig=true" returns a tuple of plot and axis, we use index zero of the tuple to save the plot
-            replacement[0].savefig(root + '/' + time_scale + '/renko/timestep_' + str(i))
+            # if the plot generation doesn't work, replace it with an empty plot
+            plt.figure(figsize=(1,1),dpi=224)
+            plt.savefig(root+'/'+time_scale+'/PandF/timestep_'+str(i))
             data_polution += 1
 
-        #TODO watch out for pandf entry 28180
-
-        #update the replacement plot with the latest one in the buffer
-        replacement = buffer
+        #TODO watch out for pandf entry 28180 and 24908
 
         # Initialise t+1 price for label generation
         resulting_price = data.iloc[i+(time_window + 1)]['Close']
@@ -270,30 +267,23 @@ def gen_renko(root, time_window,time_scale,data_file):
     #Keep track of every file name
     file_name_labels = []
 
-    replacement = None  # This will hold on to the latest plot as replacement for corrupted data
     data_polution = 0
     #Plot day-by-day renko chart, with previous 'time_window' days history, for every day
     #We do not include the very last day because we do not know its price change in the following time step.
     for i in tqdm(range(data.shape[0]-time_window-1)):
-
-
-
         current_timeStep = data.iloc[i:i+time_window]
 
         try:
             # Change size of saved figures to match resnet image resolution of 224x224 (default dpi of 100 used in calculation below)
-            buffer = mpf.plot(current_timeStep, type='renko', style='yahoo', returnfig=True,
+            buffer = mpf.plot(current_timeStep, type='renko', style='yahoo',
                      savefig=root + '/' + time_scale + '/renko/timestep_' + str(i), figsize=(224 / 100, 224 / 100))
 
         except:
-            # if fixing it still doesn't work, replace with the latest working plot
-            #Note, mpf "returnfig=true" returns a tuple of plot and axis, we use index zero of the tuple to save the plot
-            replacement[0].savefig(root + '/' + time_scale + '/renko/timestep_' + str(i))
+            # if the plot generation doesn't work, replace it with an empty plot
+            plt.figure(figsize=(1, 1), dpi=224)
+            plt.savefig(root + '/' + time_scale + '/renko/timestep_' + str(i))
             data_polution += 1
 
-
-        #update the replacement plot with the latest one in the buffer
-        replacement = buffer
 
         # Initialise t+1 price for label generation
         resulting_price = data.iloc[i+(time_window + 1)]['Close']
@@ -411,7 +401,7 @@ gen_movingAvg(root,time_window,'daily','ETH_day.csv')
 #gen_candlestick(root,time_window,'hourly','ETH_1H.csv')
 #gen_priceLine(root,time_window,'hourly','ETH_1H.csv')
 #gen_PandF(root,time_window,'hourly','ETH_1H.csv')
-#gen_renko(root,time_window,'hourly','ETH_1H.csv')
+gen_renko(root,time_window,'hourly','ETH_1H.csv')
 #gen_movingAvg(root,time_window,'hourly','ETH_1H.csv')
 
 
