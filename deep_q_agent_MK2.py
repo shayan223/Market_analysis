@@ -127,7 +127,7 @@ class environment:
         for i in range(len(img_list)):
             img_list[i] = img_list[i].unsqueeze(0).permute(0,3,1,2).type(torch.FloatTensor)
 
-        return img_list, time_step_label
+        return torch.stack(img_list, dim=0), time_step_label
 
 
     def get_state(self):
@@ -275,16 +275,16 @@ class Ensemble(nn.Module):
         x4 = x4.to(device)
         x5 = x5.to(device)
 
-        x1 = self.cnn1(x1).squeeze()
-        x2 = self.cnn2(x2).squeeze()
-        x3 = self.cnn3(x3).squeeze()
-        x4 = self.cnn4(x4).squeeze()
-        x5 = self.cnn5(x5).squeeze()
-
+        x1 = self.cnn1(x1)#.squeeze()
+        x2 = self.cnn2(x2)#.squeeze()
+        x3 = self.cnn3(x3)#.squeeze()
+        x4 = self.cnn4(x4)#.squeeze()
+        x5 = self.cnn5(x5)#.squeeze()
+        #print(x1.shape)
         x = torch.cat((x1,x2,x3,x4,x5),dim=1)
         #TODO which is better? activated or not?
         #x = self.NN(F.relu(x))
-        print(x)
+        #print(x)
         x = self.NN(x)
         return x
 
@@ -302,7 +302,10 @@ cnn2 = load_model('./models/movingAvg/movingAvg.pt')
 cnn3 = load_model('./models/PandF/PandF.pt')
 cnn4 = load_model('./models/price_line/price_line.pt')
 cnn5 = load_model('./models/renko/renko.pt')
-NN = NN_sig(feature_count,n_actions)
+#NN = NN_sig(feature_count,n_actions)
+#input to the NN will be 5 times the output size of one of the CNN's (because their are 5 cnn's)
+#NOTE: *list(model.children())[:-1] retrieves the last layer of the model
+NN = NN_sig(cnn1.fc.out_features*5,n_actions)
 
 #Create ensemble
 policy_net = Ensemble(NN,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
@@ -380,7 +383,7 @@ def optimize_model():
     # for each batch state according to policy_net
 
 
-    state_action_values = policy_net(state_batch).gather(1, action_batch)
+    state_action_values = policy_net(*state_batch).gather(1, action_batch)
 
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
