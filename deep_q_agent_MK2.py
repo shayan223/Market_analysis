@@ -63,6 +63,7 @@ class environment:
         self.cur_time_step = offset
 
     def set_data_split(self, validation_split):
+        #all image datasets should be the same size always, as they are made of the same time series data
         dataset_size = len(self.g1)
         split = int(np.floor(validation_split * dataset_size))
         self.max_steps = self.total_steps - split
@@ -128,8 +129,6 @@ class environment:
 
         return img_list, time_step_label
 
-        # Currently just 5 random "approximations"
-        #return torch.rand(5)
 
     def get_state(self):
         return self.get_state_internal(self.cur_time_step)
@@ -196,11 +195,11 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 10
-NUM_EPISODES = 3000
-STEPS_PER_EP = 12
+NUM_EPISODES = 2
+STEPS_PER_EP = 5
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
-VALIDATION_EPISODES = 200
+VALIDATION_EPISODES = 2
 
 
 env = environment(DATA_ROOT, validation_split=VALIDATION_SPLIT,steps_per_ep=STEPS_PER_EP)
@@ -257,6 +256,38 @@ class NN_sig(nn.Module):
         return self.out(x.view(x.size(0), -1))
 
 
+class Ensemble(nn.Module):
+    #combine all the CNN approximators and NN models
+    def __init__(self, NN, cnn1, cnn2, cnn3, cnn4, cnn5):
+        super(Ensemble, self).__init__()
+
+        self.NN = NN
+        self.cnn1 = cnn1
+        self.cnn2 = cnn2
+        self.cnn3 = cnn3
+        self.cnn4 = cnn4
+        self.cnn5 = cnn5
+
+    def forward(self, x1,x2,x3,x4,x5):
+        x1 = x1.to(device)
+        x2 = x2.to(device)
+        x3 = x3.to(device)
+        x4 = x4.to(device)
+        x5 = x5.to(device)
+
+        x1 = self.cnn1(x1).squeeze()
+        x2 = self.cnn2(x2).squeeze()
+        x3 = self.cnn3(x3).squeeze()
+        x4 = self.cnn4(x4).squeeze()
+        x5 = self.cnn5(x5).squeeze()
+
+        x = torch.cat((x1,x2,x3,x4,x5),dim=1)
+        #TODO which is better? activated or not?
+        #x = self.NN(F.relu(x))
+        print(x)
+        x = self.NN(x)
+        return x
+
 
 
 # Get number of actions from gym action space
@@ -265,8 +296,17 @@ n_actions = env.n_actions
 #Number of graphs being used in approximation
 feature_count = 5
 
-policy_net = NN_sig(feature_count,n_actions).to(device)
-target_net = NN_sig(feature_count,n_actions).to(device)
+#initialise ensembled models
+cnn1 = load_model('./models/candle_stick/candle_stick.pt')
+cnn2 = load_model('./models/movingAvg/movingAvg.pt')
+cnn3 = load_model('./models/PandF/PandF.pt')
+cnn4 = load_model('./models/price_line/price_line.pt')
+cnn5 = load_model('./models/renko/renko.pt')
+NN = NN_sig(feature_count,n_actions)
+
+#Create ensemble
+policy_net = Ensemble(NN,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
+target_net = Ensemble(NN,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
@@ -294,7 +334,8 @@ def select_action(state):
             return policy_net(state).max(1)[1].view(1, 1)'''
         policy_net.eval()
 
-        val = policy_net(state.unsqueeze(0)).max(1)[1].view(1, 1)
+        #We use *state because it is a list of image values (x1 through x5) which expand to arguments x1 ... x5
+        val = policy_net(*state).max(1)[1].view(1, 1)
         policy_net.train()
         return val
     else:
@@ -304,21 +345,6 @@ def select_action(state):
 episode_durations = []
 
 
-def plot_durations():
-    plt.figure(2)
-    plt.clf()
-    durations_t = torch.tensor(episode_durations, dtype=torch.float)
-    plt.title('Training')
-    plt.xlabel('Episode')
-    plt.ylabel('Duration')
-    plt.plot(durations_t.numpy())
-    # Take 100 episode averages and plot them too
-    if len(durations_t) >= 100:
-        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-        means = torch.cat((torch.zeros(99), means))
-        plt.plot(means.numpy())
-
-    #plt.pause(0.001)  # pause a bit so that plots are updated
 
 
 
@@ -403,8 +429,8 @@ for i_episode in range(NUM_EPISODES):
     print("Episode starting from t= ",start_t," to t= ",(start_t+STEPS_PER_EP))
     env.set_start_offset(start_t)
 
-    state = env.state_approximation
-    next_state = env.state_approximation
+    state = env.state
+    next_state = env.state
 
     print("Training for ", STEPS_PER_EP, " steps.")
     for t in tqdm(count()):
@@ -418,7 +444,7 @@ for i_episode in range(NUM_EPISODES):
 
         # Observe new state
         if not done:
-            next_state = env.state_approximation
+            next_state = env.state
         else:
             next_state = None
 
@@ -433,7 +459,6 @@ for i_episode in range(NUM_EPISODES):
         optimize_model()
         if done:
             episode_durations.append(t + 1)
-            #plot_durations()
             break
     # Update the target network, copying all weights and biases in DQN
     if i_episode % TARGET_UPDATE == 0:
@@ -488,8 +513,8 @@ for i_episode in range(VALIDATION_EPISODES):
     env.max_steps = env.total_steps - 2
 
 
-    state = env.state_approximation
-    next_state = env.state_approximation
+    state = env.state
+    next_state = env.state
 
     for t in tqdm(count()):
         # Select and perform an action
@@ -502,7 +527,7 @@ for i_episode in range(VALIDATION_EPISODES):
 
         # Observe new state
         if not done:
-            next_state = env.state_approximation
+            next_state = env.state
         else:
             next_state = None
 
@@ -515,7 +540,6 @@ for i_episode in range(VALIDATION_EPISODES):
         #no need to optimise the model in validation, so that portion has been removed
         if done:
             episode_durations.append(t + 1)
-            #plot_durations()
             break
     '''
     # Update the target network, copying all weights and biases in DQN
@@ -568,8 +592,8 @@ for i_episode in range(1):
     # We subtract 2 because we depend on future data for a label
     env.max_steps = env.total_steps - 2
 
-    state = env.state_approximation
-    next_state = env.state_approximation
+    state = env.state
+    next_state = env.state
 
     for t in tqdm(count()):
         # Select and perform an action
@@ -583,7 +607,7 @@ for i_episode in range(1):
 
         # Observe new state
         if not done:
-            next_state = env.state_approximation
+            next_state = env.state
         else:
             next_state = None
 
@@ -596,7 +620,6 @@ for i_episode in range(1):
         #no need to optimise the model in validation, so that portion has been removed
         if done:
             episode_durations.append(t + 1)
-            #plot_durations()
             break
     # Update the target network, copying all weights and biases in DQN
     if i_episode % TARGET_UPDATE == 0:
