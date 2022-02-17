@@ -160,11 +160,11 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 10
-NUM_EPISODES = 2
-STEPS_PER_EP = 5
+NUM_EPISODES = 10
+STEPS_PER_EP = 24
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
-VALIDATION_EPISODES = 2
+VALIDATION_EPISODES = 10
 
 
 env = environment(DATA_ROOT, validation_split=VALIDATION_SPLIT,steps_per_ep=STEPS_PER_EP)
@@ -232,6 +232,13 @@ class Ensemble(nn.Module):
         self.cnn3 = cnn3
         self.cnn4 = cnn4
         self.cnn5 = cnn5
+
+        self.NN = NN.train()
+        self.cnn1.train()
+        self.cnn2.train()
+        self.cnn3.train()
+        self.cnn4.train()
+        self.cnn5.train()
 
     def forward(self, xlist):
         #this condition handles a batch of states versus a single state containing 5 images
