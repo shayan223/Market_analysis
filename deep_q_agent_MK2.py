@@ -48,8 +48,6 @@ class environment:
 
         self.state, self.current_label = self.get_state()
 
-        self.state_approximation = self.aproximate_values()
-
         self.offset_start = 0
 
         #Marks the start of the timesteps saved for validation
@@ -104,7 +102,6 @@ class environment:
         self.cur_time_step += 1
         #update state information
         self.state, self.current_label = self.get_state()
-        self.state_approximation = self.aproximate_values()
 
         #Stop training at the end of the episode
         if(self.cur_time_step == (self.offset_start+self.steps_per_ep)):
@@ -127,46 +124,14 @@ class environment:
         for i in range(len(img_list)):
             img_list[i] = img_list[i].unsqueeze(0).permute(0,3,1,2).type(torch.FloatTensor)
 
-        return torch.stack(img_list, dim=0), time_step_label
+
+        state_tensor = torch.stack(img_list, dim=0)
+
+        return state_tensor, time_step_label
 
 
     def get_state(self):
         return self.get_state_internal(self.cur_time_step)
-
-    def aproximate_values(self):
-
-        #NOTE: squeeze() simply removes empty (extra in this case) dimensions
-        output_vector = [
-        self.ap1(self.state[0]).squeeze(),
-        self.ap2(self.state[1]).squeeze(),
-        self.ap3(self.state[2]).squeeze(),
-        self.ap4(self.state[3]).squeeze(),
-        self.ap5(self.state[4]).squeeze()
-            ]
-
-        #Take output <sell_confidence, buy_confidence> and convert it to scalar positive (buy confidence)
-        # or scalar negative (sell confidence)
-        approximation_vector = []
-        for i in range(len(output_vector)):
-            #to_buy is 0 for sell, 1 for buy
-            to_buy = torch.argmax(output_vector[i])
-            output_vector[i]
-            result = output_vector[i][to_buy]
-            #TODO FIND A BETTER WAY TO HANDLE THIS SCENERIO
-            # in cases where the highest confidence is still negative, set to 0
-            if(result < 0):
-                result = 0
-
-            #Now convert that confidence value to positive if buy, negative if sell
-            if(to_buy == 0):
-                result = result * -1
-
-            approximation_vector.append(result)
-
-
-        approximation_vector = torch.tensor(approximation_vector)
-
-        return approximation_vector
 
 
 
@@ -241,7 +206,7 @@ class NN_sig(nn.Module):
         x = x.to(device)
 
         x = self.Dense1(x)
-        #x = x.unsqueeze(0)
+
         x = self.bn1(x)
         x = F.relu(x)
 
@@ -268,24 +233,32 @@ class Ensemble(nn.Module):
         self.cnn4 = cnn4
         self.cnn5 = cnn5
 
-    def forward(self, x1,x2,x3,x4,x5):
-        x1 = x1.to(device)
-        x2 = x2.to(device)
-        x3 = x3.to(device)
-        x4 = x4.to(device)
-        x5 = x5.to(device)
+    def forward(self, xlist):
+        #this condition handles a batch of states versus a single state containing 5 images
+        if(len(xlist.shape) == 6):
+            x1 = xlist[:,0].squeeze().to(device)
+            x2 = xlist[:,1].squeeze().to(device)
+            x3 = xlist[:,2].squeeze().to(device)
+            x4 = xlist[:,3].squeeze().to(device)
+            x5 = xlist[:,4].squeeze().to(device)
+        else:
+            x1 = xlist[0].to(device)
+            x2 = xlist[1].to(device)
+            x3 = xlist[2].to(device)
+            x4 = xlist[3].to(device)
+            x5 = xlist[4].to(device)
 
-        x1 = self.cnn1(x1)#.squeeze()
-        x2 = self.cnn2(x2)#.squeeze()
-        x3 = self.cnn3(x3)#.squeeze()
-        x4 = self.cnn4(x4)#.squeeze()
-        x5 = self.cnn5(x5)#.squeeze()
-        #print(x1.shape)
+        x1 = self.cnn1(x1)
+        x2 = self.cnn2(x2)
+        x3 = self.cnn3(x3)
+        x4 = self.cnn4(x4)
+        x5 = self.cnn5(x5)
+
         x = torch.cat((x1,x2,x3,x4,x5),dim=1)
         #TODO which is better? activated or not?
         #x = self.NN(F.relu(x))
-        #print(x)
         x = self.NN(x)
+
         return x
 
 
@@ -303,8 +276,8 @@ cnn3 = load_model('./models/PandF/PandF.pt')
 cnn4 = load_model('./models/price_line/price_line.pt')
 cnn5 = load_model('./models/renko/renko.pt')
 #NN = NN_sig(feature_count,n_actions)
+
 #input to the NN will be 5 times the output size of one of the CNN's (because their are 5 cnn's)
-#NOTE: *list(model.children())[:-1] retrieves the last layer of the model
 NN = NN_sig(cnn1.fc.out_features*5,n_actions)
 
 #Create ensemble
@@ -337,8 +310,8 @@ def select_action(state):
             return policy_net(state).max(1)[1].view(1, 1)'''
         policy_net.eval()
 
-        #We use *state because it is a list of image values (x1 through x5) which expand to arguments x1 ... x5
-        val = policy_net(*state).max(1)[1].view(1, 1)
+        #state is currently a tensor containing 5 tensors, one for each image
+        val = policy_net(state).max(1)[1].view(1, 1)
         policy_net.train()
         return val
     else:
@@ -369,9 +342,9 @@ def optimize_model():
                                                 if s is not None])
 
 
-    state_batch = torch.stack(batch.state,dim=0)#.unsqueeze(1)
+    state_batch = torch.stack(batch.state,dim=0)
     action_batch = torch.stack(batch.action,dim=0).flatten(1)
-    reward_batch = torch.stack(batch.reward,dim=0)#.unsqueeze(1)
+    reward_batch = torch.stack(batch.reward,dim=0)
     '''
     state_batch = batch.state
     action_batch = batch.action
@@ -382,8 +355,7 @@ def optimize_model():
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
 
-
-    state_action_values = policy_net(*state_batch).gather(1, action_batch)
+    state_action_values = policy_net(state_batch).gather(1, action_batch)
 
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
