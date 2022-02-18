@@ -26,7 +26,7 @@ class environment:
 
     def __init__(self, data_root, validation_split,steps_per_ep):
         self.cur_time_step = 0
-        self.n_actions = 2
+        self.n_actions = 3
         self.g1 = market_graph_dataset(csv_file=data_root+'candle_stick/labels.csv', root_dir=data_root+'/candle_stick')
         self.g2 = market_graph_dataset(csv_file=data_root + 'movingAvg/labels.csv', root_dir=data_root + '/movingAvg')
         self.g3 = market_graph_dataset(csv_file=data_root + 'PandF/labels.csv', root_dir=data_root + '/PandF')
@@ -80,18 +80,22 @@ class environment:
 
         #reward buying before price increases
         #Punish when buying before price decreases
-        #TODO Current assumption: 0 sell and 1 buy
-        if price_change > 0 and action >= 1:
+        #TODO Current assumption: 0 sell, 1 do nothing, 2 buy
+        if price_change > 0 and action == 2:
             reward = 1
-        if price_change < 0 and action >= 1:
+        if price_change < 0 and action == 2:
             reward = -1
 
         #reward for selling before price decreases
         #punishing for selling before price increases
-        if price_change < 0 and action < 1:
+        if price_change < 0 and action == 0:
             reward = 1
-        if price_change > 0 and action < 1:
+        if price_change > 0 and action == 0:
             reward = -1
+
+        #No loss in points when a "no-action" is taken
+        if action == 1:
+            reward = 0
 
         done = 0
 
@@ -159,12 +163,12 @@ GAMMA = 0.999
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
-TARGET_UPDATE = 10
-NUM_EPISODES = 10
+TARGET_UPDATE = 100
+NUM_EPISODES = 1000
 STEPS_PER_EP = 24
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
-VALIDATION_EPISODES = 10
+VALIDATION_EPISODES = 250
 
 
 env = environment(DATA_ROOT, validation_split=VALIDATION_SPLIT,steps_per_ep=STEPS_PER_EP)
@@ -318,7 +322,9 @@ def select_action(state):
         policy_net.eval()
 
         #state is currently a tensor containing 5 tensors, one for each image
+
         val = policy_net(state).max(1)[1].view(1, 1)
+
         policy_net.train()
         return val
     else:
