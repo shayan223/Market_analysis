@@ -71,30 +71,33 @@ class environment:
 
 
     def step(self, action):
+
         #returns reward and binary for whether the last step has been reached
 
         #reward nothing if price doesn't change
         reward = 0
 
-        price_change = self.current_label
+        price_change_percent = self.current_label
+
+        #our reward function: (close - open)/open (this is handled implicitly in the label
 
         #reward buying before price increases
         #Punish when buying before price decreases
-        #TODO Current assumption: 0 sell, 1 do nothing, 2 buy
-        if price_change > 0 and action == 2:
+        # TODO Current assumption: 0 sell, 1 buy, 2 do nothing
+        if price_change_percent > 0 and action == 1:
             reward = 1
-        if price_change < 0 and action == 2:
+        if price_change_percent < 0 and action == 1:
             reward = -1
 
         #reward for selling before price decreases
         #punishing for selling before price increases
-        if price_change < 0 and action == 0:
+        if price_change_percent < 0 and action == 0:
             reward = 1
-        if price_change > 0 and action == 0:
+        if price_change_percent > 0 and action == 0:
             reward = -1
 
-        #No loss in points when a "no-action" is taken
-        if action == 1:
+        #No loss in points when a "no-action" is taken, this cannot be taken during training
+        if action == 2:
             reward = 0
 
         done = 0
@@ -110,6 +113,7 @@ class environment:
         #Stop training at the end of the episode
         if(self.cur_time_step == (self.offset_start+self.steps_per_ep)):
             done = 1
+
 
         return reward, done
 
@@ -157,10 +161,11 @@ Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
 
 
+K = .3 #confidence threshold: don't sell or buy if the difference in their confidences % is less than K
 REPLAY_MEMORY = 8
 BATCH_SIZE = 4
 GAMMA = 0.999
-EPS_START = 0.9
+EPS_START = 0.3
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 100
@@ -306,7 +311,7 @@ memory = ReplayMemory(REPLAY_MEMORY)
 steps_done = 0
 
 
-def select_action(state):
+def select_action(state,confidence_threshold):
     global steps_done
     sample = random.random()
     #update epsilon (greedy) values
@@ -323,11 +328,25 @@ def select_action(state):
             return policy_net(state).max(1)[1].view(1, 1)'''
         policy_net.eval()
 
-        #state is currently a tensor containing 5 tensors, one for each image
-        print(policy_net(state))
-        val = policy_net(state).max(1)[1].view(1, 1)
+        val = policy_net(state)
+        val = val.max(1)[1].view(1, 1)
+        #TODO: Implement the following for validation only
+        '''
+        #Confidence between sell and buy (difference in probabilities)
+        confidence = torch.abs((val[0][0] - val[0][1]))
 
+        #if the confidence is worse than the threshold, hold rather than attempt to sell or buy
+        if(confidence < confidence_threshold):
+            val = torch.tensor([[2]], device=device, dtype=torch.long)
+
+
+        #otherwise take the most confident action
+        else:
+            #state is currently a tensor containing 5 tensors, one for each image
+            val = val.max(1)[1].view(1, 1)
+        '''
         policy_net.train()
+
         return val
     else:
         return torch.tensor([[random.randrange(n_actions)]], device=device, dtype=torch.long)
@@ -425,7 +444,7 @@ for i_episode in range(NUM_EPISODES):
     print("Training for ", STEPS_PER_EP, " steps.")
     for t in tqdm(count()):
         # Select and perform an action
-        action = select_action(state)
+        action = select_action(state,confidence_threshold=K)
         reward, done = env.step(action.item())
         reward = torch.tensor([reward], device=device)
 
@@ -508,7 +527,7 @@ for i_episode in range(VALIDATION_EPISODES):
 
     for t in tqdm(count()):
         # Select and perform an action
-        action = select_action(state)
+        action = select_action(state,confidence_threshold=K)
         reward, done = env.step(action.item())
         reward = torch.tensor([reward], device=device)
 
@@ -587,7 +606,7 @@ for i_episode in range(1):
 
     for t in tqdm(count()):
         # Select and perform an action
-        action = select_action(state)
+        action = select_action(state,confidence_threshold=K)
 
         reward, done = env.step(action.item())
         reward = torch.tensor([reward], device=device)

@@ -58,6 +58,7 @@ def test_retrieval():
 
         #print(sample['percent_change'])
         print(img.shape)
+        print(label)
         break
 
 
