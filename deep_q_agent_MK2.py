@@ -26,7 +26,7 @@ class environment:
 
     def __init__(self, data_root, validation_split,steps_per_ep):
         self.cur_time_step = 0
-        self.n_actions = 3
+        self.n_actions = 2
         self.g1 = market_graph_dataset(csv_file=data_root+'candle_stick/labels.csv', root_dir=data_root+'/candle_stick')
         self.g2 = market_graph_dataset(csv_file=data_root + 'movingAvg/labels.csv', root_dir=data_root + '/movingAvg')
         self.g3 = market_graph_dataset(csv_file=data_root + 'PandF/labels.csv', root_dir=data_root + '/PandF')
@@ -164,7 +164,7 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 100
-NUM_EPISODES = 1000
+NUM_EPISODES = 500
 STEPS_PER_EP = 24
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
@@ -190,12 +190,12 @@ class ReplayMemory(object):
         return len(self.memory)
 
 
-class NN_sig(nn.Module):
+class NN_soft(nn.Module):
 
     #inputs: number of approximated features and/or CNN aproximator outputs
     #outputs: currently 2 outputs, buy and sell
     def __init__(self, inputs, outputs):
-        super(NN_sig, self).__init__()
+        super(NN_soft, self).__init__()
 
         self.Dense1 = nn.Linear(inputs, 16)
         self.bn1 = nn.BatchNorm1d(16)
@@ -222,7 +222,7 @@ class NN_sig(nn.Module):
         x = self.bn3(x)
         x = F.relu(x)
 
-        return self.out(x.view(x.size(0), -1))
+        return F.softmax(self.out(x.view(x.size(0), -1)))
 
 
 class Ensemble(nn.Module):
@@ -289,7 +289,9 @@ cnn5 = load_model('./models/renko/renko.pt')
 #NN = NN_sig(feature_count,n_actions)
 
 #input to the NN will be 5 times the output size of one of the CNN's (because their are 5 cnn's)
-NN = NN_sig(cnn1.fc.out_features*5,n_actions)
+#we are currently using 3 actions, however the output for the NN is 2 because non-confident output will
+#be thresholded to a 3rd action
+NN = NN_soft(cnn1.fc.out_features*5,n_actions)
 
 #Create ensemble
 policy_net = Ensemble(NN,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
@@ -322,7 +324,7 @@ def select_action(state):
         policy_net.eval()
 
         #state is currently a tensor containing 5 tensors, one for each image
-
+        print(policy_net(state))
         val = policy_net(state).max(1)[1].view(1, 1)
 
         policy_net.train()
