@@ -1,0 +1,13 @@
+K = .3 #confidence threshold: don't sell or buy if the difference in their confidences % is less than K
+REPLAY_MEMORY = 8
+BATCH_SIZE = 4
+GAMMA = 0.6 # discount factor
+EPS_START = 0.3
+EPS_END = 0.05
+EPS_DECAY = 100
+TARGET_UPDATE = 25
+NUM_EPISODES = 1500
+STEPS_PER_EP = 24
+DATA_ROOT = './data/hourly/'
+VALIDATION_SPLIT = .2
+VALIDATION_EPISODES = 250

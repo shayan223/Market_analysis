@@ -162,14 +162,14 @@ Transition = namedtuple('Transition',
 
 
 K = .3 #confidence threshold: don't sell or buy if the difference in their confidences % is less than K
-REPLAY_MEMORY = 8
+REPLAY_MEMORY = 128
 BATCH_SIZE = 4
-GAMMA = 0.999
+GAMMA = 0.5 # discount factor
 EPS_START = 0.3
 EPS_END = 0.05
 EPS_DECAY = 200
-TARGET_UPDATE = 100
-NUM_EPISODES = 500
+TARGET_UPDATE = 25
+NUM_EPISODES = 2000
 STEPS_PER_EP = 24
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
