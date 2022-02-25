@@ -162,7 +162,7 @@ Transition = namedtuple('Transition',
 
 
 K = .3 #confidence threshold: don't sell or buy if the difference in their confidences % is less than K
-REPLAY_MEMORY = 128
+REPLAY_MEMORY = 64
 BATCH_SIZE = 4
 GAMMA = 0.5 # discount factor
 EPS_START = 0.3
@@ -195,55 +195,47 @@ class ReplayMemory(object):
         return len(self.memory)
 
 
-class NN_soft(nn.Module):
+#LSTM code based on the following tutorial https://pytorch.org/tutorials/beginner/nlp/sequence_models_tutorial.html
+
+class LSTM(nn.Module):
 
     #inputs: number of approximated features and/or CNN aproximator outputs
     #outputs: currently 2 outputs, buy and sell
-    def __init__(self, inputs, outputs):
-        super(NN_soft, self).__init__()
+    def __init__(self, embedding_dim, hidden_dim, tagset_size):
+        super(LSTM, self).__init__()
+        self.hidden_dim = hidden_dim
 
-        self.Dense1 = nn.Linear(inputs, 16)
-        self.bn1 = nn.BatchNorm1d(16)
-        self.Dense2 = nn.Linear(16, 32)
-        self.bn2 = nn.BatchNorm1d(32)
-        self.Dense3 = nn.Linear(32,32)
-        self.bn3 = nn.BatchNorm1d(32)
-        self.out = nn.Linear(32, outputs)
+        # The LSTM takes word embeddings as inputs, and outputs hidden states
+        # with dimensionality hidden_dim.
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim)
 
-    def forward(self, x):
+        # The linear layer that maps from hidden state space to tag space
+        self.hidden2tag = nn.Linear(hidden_dim, tagset_size)
 
-        x = x.to(device)
+    def forward(self, embeds, input_size):
 
-        x = self.Dense1(x)
+        lstm_out, _ = self.lstm(embeds.view(len(input_size), 1, -1))
+        tag_space = self.hidden2tag(lstm_out.view(len(input_size), -1))
+        tag_scores = F.log_softmax(tag_space, dim=1)
+        return tag_scores
 
-        x = self.bn1(x)
-        x = F.relu(x)
-
-        x = self.Dense2(x)
-        x = self.bn2(x)
-        x = F.relu(x)
-
-        x = self.Dense3(x)
-        x = self.bn3(x)
-        x = F.relu(x)
-
-        return F.softmax(self.out(x.view(x.size(0), -1)))
+        #return F.softmax(self.out(x.view(x.size(0), -1)))
 
 
 class Ensemble(nn.Module):
     #combine all the CNN approximators and NN models
-    def __init__(self, NN, cnn1, cnn2, cnn3, cnn4, cnn5):
+    def __init__(self, LSTM, cnn1, cnn2, cnn3, cnn4, cnn5):
         super(Ensemble, self).__init__()
 
-        self.NN = NN
+        self.LSTM = LSTM
         self.cnn1 = cnn1
         self.cnn2 = cnn2
         self.cnn3 = cnn3
         self.cnn4 = cnn4
         self.cnn5 = cnn5
 
-        self.NN = NN.train()
-        self.cnn1.train()
+        self.LSTM = LSTM.train()
+        self.cnn1.training
         self.cnn2.train()
         self.cnn3.train()
         self.cnn4.train()
@@ -296,11 +288,11 @@ cnn5 = load_model('./models/renko/renko.pt')
 #input to the NN will be 5 times the output size of one of the CNN's (because their are 5 cnn's)
 #we are currently using 3 actions, however the output for the NN is 2 because non-confident output will
 #be thresholded to a 3rd action
-NN = NN_soft(cnn1.fc.out_features*5,n_actions)
+LSTM = LSTM_soft(cnn1.fc.out_features*5,n_actions)
 
 #Create ensemble
-policy_net = Ensemble(NN,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
-target_net = Ensemble(NN,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
+policy_net = Ensemble(LSTM,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
+target_net = Ensemble(LSTM,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 

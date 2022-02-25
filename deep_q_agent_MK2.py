@@ -169,7 +169,7 @@ EPS_START = 0.3
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 25
-NUM_EPISODES = 2000
+NUM_EPISODES = 500
 STEPS_PER_EP = 24
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
@@ -225,7 +225,7 @@ class NN_soft(nn.Module):
 
         x = self.Dense3(x)
         x = self.bn3(x)
-        x = F.relu(x)
+        #x = F.relu(x)
 
         return F.softmax(self.out(x.view(x.size(0), -1)))
 
