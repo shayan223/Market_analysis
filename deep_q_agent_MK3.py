@@ -33,11 +33,6 @@ class environment:
         self.g4 = market_graph_dataset(csv_file=data_root + 'price_line/labels.csv', root_dir=data_root + '/price_line')
         self.g5 = market_graph_dataset(csv_file=data_root + 'renko/labels.csv', root_dir=data_root + '/renko')
 
-        self.ap1 = load_model('./models/candle_stick/candle_stick.pt')
-        self.ap2 = load_model('./models/movingAvg/movingAvg.pt')
-        self.ap3 = load_model('./models/PandF/PandF.pt')
-        self.ap4 = load_model('./models/price_line/price_line.pt')
-        self.ap5 = load_model('./models/renko/renko.pt')
 
         self.total_steps = len(self.g1)
         #max time step before validation data cutoff
@@ -196,26 +191,28 @@ class ReplayMemory(object):
 
 
 #LSTM code based on the following tutorial https://pytorch.org/tutorials/beginner/nlp/sequence_models_tutorial.html
+# as well as this project combining CNN's and LSTM:
+# https://github.com/pranoyr/cnn-lstm and https://github.com/pranoyr/cnn-lstm/blob/master/models/cnnlstm.py
 
-class LSTM(nn.Module):
+class LSTM_head(nn.Module):
 
     #inputs: number of approximated features and/or CNN aproximator outputs
     #outputs: currently 2 outputs, buy and sell
     def __init__(self, embedding_dim, hidden_dim, tagset_size):
-        super(LSTM, self).__init__()
+        super(LSTM_head, self).__init__()
         self.hidden_dim = hidden_dim
 
         # The LSTM takes word embeddings as inputs, and outputs hidden states
         # with dimensionality hidden_dim.
         self.lstm = nn.LSTM(embedding_dim, hidden_dim)
 
-        # The linear layer that maps from hidden state space to tag space
-        self.hidden2tag = nn.Linear(hidden_dim, tagset_size)
+        # The linear layer that maps from hidden state space to action space
+        self.hidden2act = nn.Linear(hidden_dim, tagset_size)
 
     def forward(self, embeds, input_size):
 
         lstm_out, _ = self.lstm(embeds.view(len(input_size), 1, -1))
-        tag_space = self.hidden2tag(lstm_out.view(len(input_size), -1))
+        tag_space = self.hidden2act(lstm_out.view(len(input_size), -1))
         tag_scores = F.log_softmax(tag_space, dim=1)
         return tag_scores
 
@@ -235,7 +232,7 @@ class Ensemble(nn.Module):
         self.cnn5 = cnn5
 
         self.LSTM = LSTM.train()
-        self.cnn1.training
+        self.cnn1.train()
         self.cnn2.train()
         self.cnn3.train()
         self.cnn4.train()
@@ -265,7 +262,7 @@ class Ensemble(nn.Module):
         x = torch.cat((x1,x2,x3,x4,x5),dim=1)
         #TODO which is better? activated or not?
         #x = self.NN(F.relu(x))
-        x = self.NN(x)
+        x = self.LSTM(x,)
 
         return x
 
@@ -288,7 +285,7 @@ cnn5 = load_model('./models/renko/renko.pt')
 #input to the NN will be 5 times the output size of one of the CNN's (because their are 5 cnn's)
 #we are currently using 3 actions, however the output for the NN is 2 because non-confident output will
 #be thresholded to a 3rd action
-LSTM = LSTM_soft(cnn1.fc.out_features*5,n_actions)
+LSTM = LSTM_head(embedding_dim=cnn1.fc.out_features*5,hidden_dim=cnn1.fc.out_features*5,tagset_size=n_actions)
 
 #Create ensemble
 policy_net = Ensemble(LSTM,cnn1, cnn2, cnn3, cnn4, cnn5).to(device)
