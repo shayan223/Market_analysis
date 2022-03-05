@@ -205,6 +205,7 @@ class Ensemble(nn.Module):
         x = self.fc1(out[-1, :, :])
         x = F.relu(x)
         x = self.fc2(x)
+        #NOTE because we are using CrossEntropyLoss, we should NOT use softmax here, as it is applied in the loss function
         return x
 
 
