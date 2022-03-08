@@ -1,20 +1,5 @@
 
-import math
-import random
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
-from collections import namedtuple, deque
-from itertools import count
-from PIL import Image
-from tqdm import tqdm
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torchvision.transforms as T
-from torchvision import models
+import os
 
 
 from dataset import market_graph_dataset
@@ -38,7 +23,7 @@ from torchvision import models
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-SEQUENCE_LENGTH = 8
+SEQUENCE_LENGTH = 24
 ENCODING_DIM = 16 #dimension of the encoding layer from each CNN
 REPLAY_MEMORY = 64
 BATCH_SIZE = 4
@@ -47,11 +32,11 @@ EPS_START = 0.3
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 25
-NUM_EPISODES = 2000
-STEPS_PER_EP = 24
+NUM_EPISODES = 500
+STEPS_PER_EP = 48
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
-VALIDATION_EPISODES = 500
+VALIDATION_EPISODES = 200
 
 
 class environment:
@@ -104,7 +89,7 @@ class environment:
         done = 0
 
         #make sure to accomodate bounds of the sequence
-        if(self.cur_time_step+self.sequence_length == self.max_steps):
+        if(self.cur_time_step+self.sequence_length == self.max_steps - 1):
             done = 1
 
         #update to the next time_step
@@ -176,9 +161,9 @@ class Ensemble(nn.Module):
         self.cnn4.train()
         self.cnn5.train()
 
-        self.lstm = nn.LSTM(cnn1.fc.out_features*5, hidden_size=256, num_layers=3)
-        self.fc1 = nn.Linear(256, 128)
-        self.fc2 = nn.Linear(128, num_classes)
+        self.lstm = nn.LSTM(cnn1.fc.out_features*5, hidden_size=256, num_layers=3).to(device)
+        self.fc1 = nn.Linear(256, 128).to(device)
+        self.fc2 = nn.Linear(128, num_classes).to(device)
 
     def forward(self, sequence):
         #this condition handles a batch of states versus a single state containing 5 images
@@ -340,6 +325,20 @@ plt.savefig('./Training_base_cnn_lstm.png')
 # clear plot for next iteration
 plt.clf()
 
+'''##################################################################'''
+'''#################### Save the model ##############################'''
+'''##################################################################'''
+
+def save_model(fit_model,experiment_name):
+    # Create requisite directory structure
+    outdir ='./models/'+str(experiment_name)+'/'
+    if not os.path.exists(outdir):
+        os.makedirs(outdir, exist_ok=True)
+
+    #Save trained model weights
+    torch.save(fit_model.state_dict(), outdir+str(experiment_name)+'.pt')
+
+save_model(target_net,'cnn_lstm')
 
 
 '''##################################################################'''
@@ -411,7 +410,7 @@ for i_episode in range(VALIDATION_EPISODES):
 print('Complete')
 
 # Plot and save loss
-X_axis = list(range(NUM_EPISODES))
+X_axis = list(range(VALIDATION_EPISODES))
 cur_plot = plt.figure()
 plt.plot(X_axis, episode_accuracy, label='Validation Accuracy')
 
@@ -425,3 +424,5 @@ plt.savefig('./Validation_base_cnn_lstm.png')
 
 # clear plot for next iteration
 plt.clf()
+
+
