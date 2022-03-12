@@ -24,7 +24,7 @@ from torchvision import models
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 SEQUENCE_LENGTH = 24
-ENCODING_DIM = 16 #dimension of the encoding layer from each CNN
+ENCODING_DIM = 8 #dimension of the encoding layer from each CNN
 REPLAY_MEMORY = 64
 BATCH_SIZE = 4
 GAMMA = 0.5 # discount factor
@@ -32,11 +32,11 @@ EPS_START = 0.3
 EPS_END = 0.05
 EPS_DECAY = 200
 TARGET_UPDATE = 25
-NUM_EPISODES = 500
-STEPS_PER_EP = 48
+NUM_EPISODES = 10
+STEPS_PER_EP = 3000
 DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
-VALIDATION_EPISODES = 200
+VALIDATION_EPISODES = 5
 
 
 class environment:
@@ -261,7 +261,7 @@ for i_episode in range(NUM_EPISODES):
     state = env.state
     next_state = env.state
 
-    print(policy_net(state))
+    #print(policy_net(state))
 
     print("Training for ", STEPS_PER_EP, " steps.")
     #loop until the environment indicates the end of an episode
@@ -345,8 +345,10 @@ save_model(target_net,'cnn_lstm')
 '''#################### Now evaluate the model ######################'''
 '''##################################################################'''
 
+
+
 episode_accuracy = []
-target_net.load_state_dict(policy_net.state_dict())
+#target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
 
 print("##### Starting Validation ######")

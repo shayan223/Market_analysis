@@ -53,7 +53,6 @@ DATA_ROOT = './data/hourly/'
 VALIDATION_SPLIT = .2
 VALIDATION_EPISODES = 2
 
-
 class environment:
 
 
@@ -106,13 +105,15 @@ class environment:
         #reward nothing if price doesn't change
         reward = 0
 
-        price_change_percent = self.current_label
-        print(self.current_label)
+        price_change_percent = self.current_label[-1]
+
         #our reward function: (close - open)/open (this is handled implicitly in the label
 
         #reward buying before price increases
         #Punish when buying before price decreases
         # TODO Current assumption: 0 sell, 1 buy, 2 do nothing
+        #print("Action: ",action)
+        #print("price:",price_change_percent)
         if price_change_percent > 0 and action == 1:
             reward = 1
         if price_change_percent < 0 and action == 1:
@@ -131,17 +132,17 @@ class environment:
 
         done = 0
 
-        #make sure to accomodate bounds of the sequence
-        if(self.cur_time_step+self.sequence_length == self.max_steps):
+        # make sure to accomodate bounds of the sequence
+        if (self.cur_time_step + self.sequence_length == self.max_steps - 1):
             done = 1
 
-        #update to the next time_step
+        # update to the next time_step
         self.cur_time_step += 1
-        #update state information
+        # update state information
         self.state, self.current_label = self.get_state()
 
-        #Stop training at the end of the episode
-        if(self.cur_time_step == (self.offset_start+self.steps_per_ep)):
+        # Stop training at the end of the episode
+        if (self.cur_time_step == (self.offset_start + self.steps_per_ep)):
             done = 1
 
 
@@ -193,7 +194,6 @@ Transition = namedtuple('Transition',
 # https://github.com/pranoyr/cnn-lstm and https://github.com/pranoyr/cnn-lstm/blob/master/models/cnnlstm.py
 
 
-
 class Ensemble(nn.Module):
     #combine all the CNN approximators and NN models
     def __init__(self, cnn1, cnn2, cnn3, cnn4, cnn5, num_classes):
@@ -211,16 +211,16 @@ class Ensemble(nn.Module):
         self.cnn4.train()
         self.cnn5.train()
 
-        self.lstm = nn.LSTM(cnn1.fc.out_features*5, hidden_size=256, num_layers=3)
-        self.fc1 = nn.Linear(256, 128)
-        self.fc2 = nn.Linear(128, num_classes)
+        self.lstm = nn.LSTM(cnn1.fc.out_features*5, hidden_size=256, num_layers=3).to(device)
+        self.fc1 = nn.Linear(256, 128).to(device)
+        self.fc2 = nn.Linear(128, num_classes).to(device)
 
     def forward(self, sequence):
         #this condition handles a batch of states versus a single state containing 5 images
         hidden = None
         for t in range(sequence.size(1)):
             xlist = sequence[:,t,:,:,:,:]#list of 3-dim images at given time step t
-            print(xlist.shape)
+
             x1 = xlist[:,0].to(device)
             x2 = xlist[:,1].to(device)
             x3 = xlist[:,2].to(device)
@@ -235,14 +235,13 @@ class Ensemble(nn.Module):
 
             x = torch.cat((x1,x2,x3,x4,x5),dim=1)
 
-            print(x.shape)
             out, hidden = self.lstm(x.unsqueeze(0), hidden)
 
         x = self.fc1(out[-1, :, :])
         x = F.relu(x)
         x = self.fc2(x)
+        #NOTE because we are using CrossEntropyLoss, we should NOT use softmax here, as it is applied in the loss function
         return x
-
 
 def load_model(encoding_dim,model_path=None):
     model = models.resnet18(pretrained=True)
@@ -296,6 +295,7 @@ policy_net = Ensemble(cnn1, cnn2, cnn3, cnn4, cnn5,num_classes=n_actions).to(dev
 target_net = Ensemble(cnn1, cnn2, cnn3, cnn4, cnn5,num_classes=n_actions).to(device)
 target_net.load_state_dict(policy_net.state_dict())
 target_net.eval()
+
 
 optimizer = optim.RMSprop(policy_net.parameters())
 memory = ReplayMemory(REPLAY_MEMORY)
@@ -382,7 +382,7 @@ def optimize_model():
     # columns of actions taken. These are the actions which would've been taken
     # for each batch state according to policy_net
 
-    state_action_values = policy_net(state_batch).gather(1, action_batch)
+    state_action_values = policy_net(state_batch.squeeze()).gather(1, action_batch)
 
     # Compute V(s_{t+1}) for all next states.
     # Expected values of actions for non_final_next_states are computed based
@@ -390,7 +390,8 @@ def optimize_model():
     # This is merged based on the mask, such that we'll have either the expected
     # state value or 0 in case the state was final.
     next_state_values = torch.zeros(BATCH_SIZE, device=device)
-    next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0].detach()
+
+    next_state_values[non_final_mask] = target_net(non_final_next_states.squeeze()).max(1)[0].detach()
 
 
     # Compute the expected Q values
